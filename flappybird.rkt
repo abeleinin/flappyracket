@@ -7,7 +7,7 @@
 (define-struct world [tick bird vel rot state stack-img stack-psn])
 
 (define pipe (scale 0.2 (bitmap "img/pipe.png")))
-(define back (bitmap "img/background.jpeg"))
+(define background (bitmap "img/background.jpeg"))
 (define bird (scale 0.12 (bitmap "img/bird.png")))
 (define tube (scale 0.2 (bitmap "img/tube.png")))
 
@@ -74,16 +74,16 @@
 
 (define (draw w)
   (cond [(string=? (world-state w) "play")
-         (place-image (text (string-append "Score: " (number->string (- (length (world-stack-img w)) 1))) 25 "black")
-                      50 20
+         (place-image (text (number->string (- (length (world-stack-img w)) 1)) 45 "white")
+                      250 100
                       (place-image (rotate (max-rot (world-rot w)) bird)
                                    (posn-x (world-bird w))
                                    (posn-y (world-bird w))
                                    (place-stack (world-stack-img w)
                                                 (world-stack-psn w))))]
         [(string=? (world-state w) "pause")
-         (place-image (text (string-append "Score: " (number->string (- (length (world-stack-img w)) 1))) 25 "black")
-                      50 20
+         (place-image (text (number->string (- (length (world-stack-img w)) 1)) 45 "white")
+                      250 100
                       (place-image (rotate 30 (triangle 20 "solid" "black"))
                                    250
                                    400
@@ -138,7 +138,7 @@
                       psn
                       "left"
                       "baseline"
-                      back))
+                      background))
 
 ; Bottom: 300 + 150 + (* (+ r 0.1) 300)
 ; 700 - (- (image-height img) 450)
@@ -173,5 +173,6 @@
   (on-tick update)
   (to-draw draw)
   (on-key input)
-  ; (stop-when stop)
   (name "Flappy Racket"))
+
+
