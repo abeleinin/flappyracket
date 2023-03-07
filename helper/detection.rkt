@@ -45,5 +45,3 @@
              (- 700 (- (image-height (first lst-stack)) 300)))]
         [else (detection bird-posn (rest lst-stack) (rest lst-posn))]))
 
-
-

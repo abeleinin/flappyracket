@@ -1,10 +1,19 @@
 ;; The first three lines of this file were inserted by DrRacket. They record metadata
 ;; about the language level of this file in a form that our tools can easily process.
-#reader(lib "htdp-intermediate-lambda-reader.ss" "lang")((modname flappybird) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
+#reader(lib "htdp-intermediate-lambda-reader.ss" "lang")((modname flappyIntermediate) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
 (require 2htdp/image)
 (require 2htdp/universe)
-; A world is a (make-world [Posn Float State [ListOf Images] [ListOf Posn]])
+
+; A State is one of:
+; - "initial"
+; - "play"
+; - "pause"
+; - "over"
+
+; A world is a (make-world [Number Number Number State [ListOf Image] [ListOf Posn] Number])
 (define-struct world [tick bird vel rot state stack-img stack-psn score])
+
+;;; Constants
 
 ; Images
 (define pipe (scale 0.2 (bitmap "img/pipe.png")))
@@ -17,16 +26,57 @@
          (rectangle 40 100 "solid" "transparent")
          pipe))
 
-; Acceleration
+; Initial State
+(define initial (make-world 0 (make-posn 250 400) 0 0 "initial" empty empty -1))
+
+; Acceleration Constant
 (define ACC 0.5)
 
+;;; Helper functions
+
+; max-rot : Number -> Number
+; Bird sprite rotation maximum function
 (define (max-rot x)
   (cond [(> x 30) 30]
         [else x]))
 
+; sine : Number -> Number
+; Bird hover function: 3 * sin(0.1x)
 (define (sine x)
   (inexact->exact (round (* (sin (* x 0.1)) 3))))
 
+; random-stack : Number -> Image
+; Generate a random image stack if different pipe separation
+(define (random-stack n)
+  (let ([r (/ (random 100) 100)])
+    (above (rotate 180 tube)
+           (rotate 180 pipe)
+           (rectangle 40 150 "solid" "transparent")
+           (crop 0 0 49 (* (+ r 0.1) 300) pipe))))
+
+; place-stack : [ListOf Image] [ListOf Posn] -> Image
+; Place stacks at given position
+(define (place-stack stacks psn)
+  (place-images/align stacks
+                      psn
+                      "left"
+                      "baseline"
+                      background))
+
+; detection: Posn [ListOf Images] [ListOf Posn] -> Boolean
+; Detect if bird hits stack
+(define (detection bird-posn lst-stack lst-posn)
+  (cond [(empty? lst-stack) #f]
+        [(<= 190 (posn-x (first lst-posn)) 250)
+         (not (<= (- 972 (- (image-height (first lst-stack)) 300))
+                  (posn-y bird-posn)
+                  (- 972 (- (image-height (first lst-stack)) 430))))]
+        [else (detection bird-posn (rest lst-stack) (rest lst-posn))]))
+
+;;; Big-Bang Functions
+
+; update : World -> World
+; on-tick function for big-bang
 (define (update w)
   (cond [(string=? (world-state w) "initial")
          (make-world
@@ -49,7 +99,7 @@
           (+ (world-vel w) ACC)
           (- (max-rot (world-rot w)) 2)
           "play"
-          (append (world-stack-img w) (list (rand-stack 1)))
+          (append (world-stack-img w) (list (random-stack 1)))
           (map (lambda (psn)
                  (make-posn (- (posn-x psn) 5)
                             (posn-y psn)))
@@ -91,8 +141,8 @@
         [(string=? (world-state w) "pause")
          w]))
           
-         
-
+; draw : World -> Image         
+; on-draw function for big-bang
 (define (draw w)
   (cond [(string=? (world-state w) "play")
          (place-image (text (number->string (if (< (world-score w) 0) 0 (world-score w))) 45 "white")
@@ -133,7 +183,8 @@
                       (place-stack (world-stack-img w)
                                    (world-stack-psn w)))]))
 
-                                   
+; input : World KeyEvent -> World
+; on-key function for big-bang
 (define (input w ke)
   (cond [(key=? ke " ")
          (cond [(string=? (world-state w) "over") w]
@@ -169,6 +220,8 @@
          initial]
         [else w]))
 
+; mouse : World MouseX MouseY MouseEvent -> World
+; on-mouse function for big-bang
 (define (mouse w x y me)
   (cond [(string=? (world-state w) "over")
          (cond [(and (mouse=? me "button-down")
@@ -178,55 +231,13 @@
                [else w])]
         [else w]))
 
-;; Detection file
-; 49 × 300
 
-(define (rand-stack n)
-  (let ([r (/ (random 100) 100)])
-    (above (rotate 180 tube)
-           (rotate 180 pipe)
-           (rectangle 40 150 "solid" "transparent")
-           (crop 0 0 49 (* (+ r 0.1) 300) pipe))))
 
-(define (place-stack stacks psn)
-  (place-images/align stacks
-                      psn
-                      "left"
-                      "baseline"
-                      background))
-
-; Bottom: 300 + 150 + (* (+ r 0.1) 300)
-; 700 - (- (image-height img) 450)
-; (- 700 (- (image-height (rand-stack 1)) 450))
-
-; Top: Bottom - 150
-
-; Width of Pipe: 49
-
-; Bird dimensions: 60 x 60
-; detection: Posn [ListOf Images] [ListOf Posn] -> Boolean
-(define (detection bird-posn lst-stack lst-posn)
-  (cond [(empty? lst-stack) #f]
-        [(<= 190 (posn-x (first lst-posn)) 250)
-         (not (<= (- 972 (- (image-height (first lst-stack)) 300))
-                  (posn-y bird-posn)
-                  (- 972 (- (image-height (first lst-stack)) 430))))]
-        [else (detection bird-posn (rest lst-stack) (rest lst-posn))]))
-
-#;
-(define (stop w)
-  (detection (world-bird w) (world-stack-img w) (world-stack-psn w)))
-
-;; End Detection
-
-(define init-stacks-img empty)
-(define init-stacks-psn empty)
-
-(define initial (make-world 0 (make-posn 250 400) 0 0 "initial" init-stacks-img init-stacks-psn -1))
-
+; Big-Bang call
 (big-bang initial
   (on-tick update)
   (to-draw draw)
   (on-key input)
   (on-mouse mouse)
   (name "Flappy Racket"))
+
