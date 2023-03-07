@@ -62,6 +62,20 @@
                       "baseline"
                       background))
 
+; filter-stack-psn : [ListOf Posn] -> [ListOf Posn]
+; Remove all posn less than -50
+(define (filter-stack-psn stack-psn)
+  (filter (lambda (curr)
+            (> (posn-x curr) -50))
+          stack-psn))
+
+; drop : [ListOf X] Number -> [ListOf X]
+; drop items from front of list
+(define (drop lst n)
+  (cond [(= n 0) lst]
+        [else (drop (rest lst) 
+                    (sub1 n))]))
+
 ; detection: Posn [ListOf Images] [ListOf Posn] -> Boolean
 ; Detect if bird hits stack
 (define (detection bird-height lst-stack lst-posn)
@@ -119,21 +133,24 @@
                      (world-stack-psn w)
                      (world-score w))]
         [(string=? (world-state w) "play")
+         (let ([filtered-stack-psn 
+                (filter-stack-psn (map (lambda (psn)
+                 (make-posn (- (posn-x psn) 5)
+                            (posn-y psn)))
+               (world-stack-psn w)))])
          (make-world
           (+ (world-tick w) 5)
           (+ (world-height w) (world-vel w) ACC)
           (+ (world-vel w) ACC)
           (- (max-rot (world-rot w)) 2)
           "play"
-          (world-stack-img w)
-          (map (lambda (psn)
-                 (make-posn (- (posn-x psn) 5)
-                            (posn-y psn)))
-               (world-stack-psn w))
-          (world-score w))]
-        [(string=? (world-state w) "pause") 
-         w]))
-          
+          (drop (world-stack-img w)
+                (- (length (world-stack-img w))
+                   (length filtered-stack-psn)))
+          filtered-stack-psn
+          (world-score w)))]
+        [(string=? (world-state w) "pause") w]))
+
 ; draw : World -> Image         
 ; on-draw function for big-bang
 (define (draw w)
