@@ -11,7 +11,7 @@
 ; - "over"
 
 ; A world is a (make-world [Number Number Number State [ListOf Image] [ListOf Posn] Number])
-(define-struct world [tick bird vel rot state stack-img stack-psn score])
+(define-struct world [tick height vel rot state stack-img stack-psn score])
 
 ;;; Constants
 
@@ -19,15 +19,14 @@
 (define pipe (scale 0.2 (bitmap "img/pipe.png")))
 (define background (bitmap "img/background.jpeg"))
 (define bird (scale 0.12 (bitmap "img/bird.png")))
-(define tube (scale 0.2 (bitmap "img/tube.png")))
-(define stack
+(define tube (scale 0.2 (bitmap "img/tube.png"))) (define stack
   (above (rotate 180 tube)
          (rotate 180 pipe)
          (rectangle 40 100 "solid" "transparent")
          pipe))
 
 ; Initial State
-(define initial (make-world 0 (make-posn 250 400) 0 0 "initial" empty empty -1))
+(define initial (make-world 0 400 0 0 "initial" empty empty -1))
 
 ; Acceleration Constant
 (define ACC 0.5)
@@ -65,13 +64,13 @@
 
 ; detection: Posn [ListOf Images] [ListOf Posn] -> Boolean
 ; Detect if bird hits stack
-(define (detection bird-posn lst-stack lst-posn)
+(define (detection bird-height lst-stack lst-posn)
   (cond [(empty? lst-stack) #f]
         [(<= 190 (posn-x (first lst-posn)) 250)
          (not (<= (- 972 (- (image-height (first lst-stack)) 300))
-                  (posn-y bird-posn)
+                  bird-height
                   (- 972 (- (image-height (first lst-stack)) 430))))]
-        [else (detection bird-posn (rest lst-stack) (rest lst-posn))]))
+        [else (detection bird-height (rest lst-stack) (rest lst-posn))]))
 
 ;;; Big-Bang Functions
 
@@ -81,9 +80,7 @@
   (cond [(string=? (world-state w) "initial")
          (make-world
           (+ (world-tick w) 5)
-          (make-posn (posn-x (world-bird w))
-                     (+ (posn-y (world-bird w))
-                        (sine (world-tick w))))
+          (+ (world-height w) (sine (world-tick w)))
           (world-vel w)
           (world-rot w)
           "initial"
@@ -93,9 +90,7 @@
         [(equal? (modulo (world-tick w) 250) 0)
          (make-world
           (+ (world-tick w) 5)
-          (make-posn (posn-x (world-bird w))
-                     (+ (posn-y (world-bird w))
-                        (+ (world-vel w) ACC)))
+          (+ (world-height w) (world-vel w) ACC)
           (+ (world-vel w) ACC)
           (- (max-rot (world-rot w)) 2)
           "play"
@@ -105,18 +100,18 @@
                             (posn-y psn)))
                (append (world-stack-psn w) (list (make-posn 500 700))))
           (add1 (world-score w)))]
-        [(detection (world-bird w) (world-stack-img w) (world-stack-psn w))
+        [(detection (world-height w) (world-stack-img w) (world-stack-psn w))
          (make-world (world-tick w)
-                     (world-bird w)
+                     (world-height w)
                      (world-vel w)
                      (world-rot w)
                      "over"
                      (world-stack-img w)
                      (world-stack-psn w)
                      (world-score w))]
-        [(> (posn-y (world-bird w)) 674)
+        [(> (world-height w) 674)
          (make-world (world-tick w)
-                     (world-bird w)
+                     (world-height w)
                      (world-vel w)
                      (world-rot w)
                      "over"
@@ -126,9 +121,7 @@
         [(string=? (world-state w) "play")
          (make-world
           (+ (world-tick w) 5)
-          (make-posn (posn-x (world-bird w))
-                     (+ (posn-y (world-bird w))
-                        (+ (world-vel w) ACC)))
+          (+ (world-height w) (world-vel w) ACC)
           (+ (world-vel w) ACC)
           (- (max-rot (world-rot w)) 2)
           "play"
@@ -138,7 +131,7 @@
                             (posn-y psn)))
                (world-stack-psn w))
           (world-score w))]
-        [(string=? (world-state w) "pause")
+        [(string=? (world-state w) "pause") 
          w]))
           
 ; draw : World -> Image         
@@ -148,8 +141,8 @@
          (place-image (text (number->string (if (< (world-score w) 0) 0 (world-score w))) 45 "white")
                       250 100
                       (place-image (rotate (max-rot (world-rot w)) bird)
-                                   (posn-x (world-bird w))
-                                   (posn-y (world-bird w))
+                                   250
+                                   (world-height w)
                                    (place-stack (world-stack-img w)
                                                 (world-stack-psn w))))]
         [(string=? (world-state w) "pause")
@@ -159,8 +152,8 @@
                                    250
                                    400
                                    (place-image (rotate (max-rot (world-rot w)) bird)
-                                                (posn-x (world-bird w))
-                                                (posn-y (world-bird w))
+                                                250
+                                                (world-height w)
                                                 (place-stack (world-stack-img w)
                                                              (world-stack-psn w)))))]
         [(string=? (world-state w) "over")
@@ -172,14 +165,14 @@
                       250
                       400
                       (place-image (rotate (max-rot (world-rot w)) bird)
-                                   (posn-x (world-bird w))
-                                   (posn-y (world-bird w))
+                                   250
+                                   (world-height w)
                                    (place-stack (world-stack-img w)
                                                 (world-stack-psn w))))]
         [(string=? (world-state w) "initial")
          (place-image (rotate (max-rot (world-rot w)) bird)
-                      (posn-x (world-bird w))
-                      (posn-y (world-bird w))
+                      250
+                      (world-height w)
                       (place-stack (world-stack-img w)
                                    (world-stack-psn w)))]))
 
@@ -190,8 +183,7 @@
          (cond [(string=? (world-state w) "over") w]
                [else
                 (make-world (world-tick w)
-                            (make-posn (posn-x (world-bird w))
-                                       (- (posn-y (world-bird w)) 50))
+                            (- (world-height w) 50)
                             0
                             (+ (world-rot w) 50)
                             "play"
@@ -200,7 +192,7 @@
                             (world-score w))])]
         [(key=? ke "k")
          (make-world (world-tick w)
-                     (world-bird w)
+                     (world-height w)
                      (world-vel w)
                      (world-rot w)
                      "pause"
@@ -209,7 +201,7 @@
                      (world-score w))]
         [(key=? ke "p")
          (make-world (world-tick w)
-                     (world-bird w)
+                     (world-height w)
                      (world-vel w)
                      (world-rot w)
                      "play"
@@ -230,8 +222,6 @@
                 initial]
                [else w])]
         [else w]))
-
-
 
 ; Big-Bang call
 (big-bang initial
