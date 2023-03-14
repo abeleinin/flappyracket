@@ -200,9 +200,9 @@
          (cond [(string=? (world-state w) "over") w]
                [else
                 (make-world (world-tick w)
-                            (- (world-height w) 50)
-                            0
-                            (+ (world-rot w) 50)
+                            (+ (world-height w) (world-vel w))
+                            (+ (world-vel w) -7)
+                            (+ (world-rot w) 100)
                             "play"
                             (world-stack-img w)
                             (world-stack-psn w)
